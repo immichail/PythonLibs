@@ -1,10 +1,11 @@
 from bs4 import BeautifulSoup as bs
 import requests as req
+from threading import Thread
 import re
 
 class ProxySearcher:
     
-    def __init__(self, url = "http://spys.one/proxies/", type = "http", destination = "http://www.google.com", timeout = 1):
+    def __init__(self, url = "http://spys.one/proxies/", type = "http", destination = "http://www.google.com", timeout = 2, MIN_IN_POOL = 2):
         self.url = url
         self.type = type
         self.poolRaw = []
@@ -13,6 +14,8 @@ class ProxySearcher:
         self.destination = destination
         self.timeout = timeout
         self.current_proxy = -1
+        self.MIN_IN_POOL = MIN_IN_POOL
+        self.repooler = None
         return
 
     def getValue(self, s, d):
@@ -93,7 +96,7 @@ class ProxySearcher:
     def createPool(self):
         print("ProxySearch::createPool - Creating new proxy pool")
         self.pool = []
-        self.poolVal = []
+        #self.poolVal = []
         #print(self.getProxiesFromURL(self.url + "1/"))
         self.getProxiesFromURL(self.url)
         for i in range(5):
@@ -111,10 +114,17 @@ class ProxySearcher:
             return self.poolVal[self.current_proxy]
         else:
             self.current_proxy += 1
+            
+            print("Currently available ", len(self.poolVal) - self.current_proxy)
+            #check how many proxies left
+            if (self.current_proxy >= len(self.poolVal) - self.MIN_IN_POOL):
+                #self.createPool()
+                self.repooler = Thread(target = self.createPool)
+                self.repooler.start()
 
             if (self.current_proxy >= len(self.poolVal)):
-                self.current_proxy = -1
-                self.createPool()
+                print("Waiting for repooler...")
+                self.repooler.join()
                 return self.next()
             else:
                 return self.poolVal[self.current_proxy]
